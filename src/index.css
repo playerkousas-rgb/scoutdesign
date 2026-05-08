@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+/* Improve readability of native select dropdowns in dark UI */
+select option {
+  background-color: #0b1220;
+  color: #e6e9f2;
+}
