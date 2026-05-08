@@ -33,23 +33,21 @@ function buildPrompt(project: Project, extra?: string): string {
 export async function generateImage(provider: AIProvider, params: GenerateImageParams): Promise<GenerateResult> {
   const prompt = buildPrompt(params.project, params.extra)
 
+  // 強制使用 Cloudflare (既然我們暫不使用 Leonardo)
   if (provider === 'CloudflareWorkersAI') {
+    // 1. 這裡現在只需要 Endpoint，因為 Token 鎖在 Worker 保險箱裡了
     const endpoint =
       params.secrets?.cfEndpoint || (import.meta.env.VITE_CF_WORKERS_AI_ENDPOINT as string | undefined) || ''
-    const token = params.secrets?.cfToken || (import.meta.env.VITE_CF_WORKERS_AI_TOKEN as string | undefined) || ''
 
-    if (!endpoint) throw new Error('Missing Cloudflare endpoint (set in Settings or VITE_CF_WORKERS_AI_ENDPOINT)')
-    if (!token) throw new Error('Missing Cloudflare token (set in Settings or VITE_CF_WORKERS_AI_TOKEN)')
+    if (!endpoint) throw new Error('請在 Vercel 設定 VITE_CF_WORKERS_AI_ENDPOINT')
 
-    // Expected worker contract (you will fill in on your side):
-    // POST { prompt, width, height, steps }
-    // -> returns image bytes (png) OR { image: base64 }
+    // 2. 呼叫你的 Worker
     const res = await fetch(endpoint, {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
-        Accept: 'image/png,application/json',
+        // 注意：這裡移除了 Authorization，因為 Worker 會自己處理
+        'Accept': 'image/png,application/json',
       },
       body: JSON.stringify({
         prompt,
@@ -62,9 +60,10 @@ export async function generateImage(provider: AIProvider, params: GenerateImageP
 
     if (!res.ok) {
       const text = await res.text().catch(() => '')
-      throw new Error(`Cloudflare Workers AI error: ${res.status} ${res.statusText}${text ? ` — ${text.slice(0, 220)}` : ''}`)
+      throw new Error(`AI 生成失敗: ${res.status} ${res.statusText}${text ? ` — ${text.slice(0, 220)}` : ''}`)
     }
 
+    // 3. 處理回傳結果 (保持你原本優秀的處理邏輯)
     const ct = res.headers.get('content-type') ?? ''
     if (ct.includes('application/json')) {
       const j = (await res.json()) as { image?: string; mime?: string }
@@ -79,7 +78,7 @@ export async function generateImage(provider: AIProvider, params: GenerateImageP
     return { dataUrl, provider, prompt }
   }
 
-  // Leonardo.ai
+   // Leonardo.ai
   const endpoint =
     params.secrets?.leonardoEndpoint || (import.meta.env.VITE_LEONARDO_ENDPOINT as string | undefined) || ''
   const apiKey = params.secrets?.leonardoApiKey || (import.meta.env.VITE_LEONARDO_API_KEY as string | undefined) || ''
