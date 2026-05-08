@@ -105,9 +105,16 @@ export function projectToAIPrompt(project: Project): string {
 }
 
 function badgeToPrompt(b: BadgeDesign): string {
+  // 1. 處理文字描述：如果沒填，就完全不要提到 "Text" 這個詞
+  const textSection = (b.elements.text_en || b.elements.text_zh) 
+    ? `including text elements: "${b.elements.text_en || ''}" ${b.elements.text_zh ? `and Chinese characters "${b.elements.text_zh}"` : ''},` 
+    : 'purely visual design without any text,'; // 沒字時的描述
+
   const palette = b.tech_specs.pantone_codes.length
     ? `Pantone palette: ${b.tech_specs.pantone_codes.join(', ')}`
-    : `Color palette (hex): ${b.tech_specs.colors.join(', ')}`
+    : `Color palette (hex): ${b.tech_specs.colors.join(', ')}`;
+
+  const theme = b.theme || 'scouting symbols';
   const structure =
     b.structure === 'Puzzle'
       ? 'interlocking puzzle badge set with 0.5mm assembly tolerance'
@@ -129,17 +136,17 @@ function badgeToPrompt(b: BadgeDesign): string {
     b.tech_specs.embroidery_3d ? '3D puff embroidery for key elements' : 'flat surface',
   ].join(', ')
 
-  return [
+ return [
     'Midjourney / DALL·E prompt (English):',
     `Design a scout commemorative badge, ${structure}.`,
-    `Theme: ${b.theme || 'scouting'}.`,
-    `Text: "${b.elements.text_en}" and Chinese text "${b.elements.text_zh}" (clear, legible).`,
+    `Theme: ${theme}.`,
+    textSection, // 使用我們處理過的文字段落
     `Style: ${b.style_notes || 'minimal modern, bold icon, high readability'}.`,
     `Manufacturing: ${craft}.`,
     `Details: ${extras}.`,
     `${palette}.`,
     'Vector-like, clean outlines, centered composition, factory-producible, no copyrighted logos, no photorealistic background.',
-  ].join(' ')
+  ].join(' ');
 }
 
 function woggleToPrompt(w: WoggleDesign): string {
