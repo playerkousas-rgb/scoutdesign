@@ -1,7 +1,13 @@
-import { Download, FileImage, FileJson, FileText, Sparkles } from 'lucide-react'
+import { Check, Copy, Download, FileImage, FileJson, FileText, Sparkles } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { Project, ValidationIssue } from '../lib/models'
-import { designToSVG, projectToAIPrompt, projectToJSON, projectToMarkdown } from '../lib/exporters'
+import {
+  designToSVG,
+  projectToCraftPrompt,
+  projectToFlatPrompt,
+  projectToJSON,
+  projectToMarkdown,
+} from '../lib/exporters'
 import { exportFactoryPdf } from '../lib/pdf'
 import { downloadBlob, exportDesignPNG, exportPrintReadyPNG } from '../lib/png'
 import { Button, Card, Divider, Pill, SectionTitle } from './ui'
@@ -33,10 +39,30 @@ function readAiImageFromLocalStorage(): string | undefined {
   }
 }
 
+function CopyBtn({ text, label = '複製' }: { text: string; label?: string }) {
+  const [copied, setCopied] = useState(false)
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        navigator.clipboard.writeText(text).then(() => {
+          setCopied(true)
+          setTimeout(() => setCopied(false), 2000)
+        })
+      }}
+      className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/10 px-2.5 py-1 text-xs font-medium text-white hover:bg-white/20"
+    >
+      {copied ? <Check className="h-3 w-3 text-emerald-300" /> : <Copy className="h-3 w-3" />}
+      {copied ? '已複製' : label}
+    </button>
+  )
+}
+
 export function PreviewPanel(props: { project: Project; issues: ValidationIssue[] }) {
   const md = useMemo(() => projectToMarkdown(props.project), [props.project])
   const json = useMemo(() => projectToJSON(props.project), [props.project])
-  const prompt = useMemo(() => projectToAIPrompt(props.project), [props.project])
+  const flatPrompt = useMemo(() => projectToFlatPrompt(props.project), [props.project])
+  const craftPrompt = useMemo(() => projectToCraftPrompt(props.project), [props.project])
   const svg = useMemo(() => designToSVG(props.project), [props.project])
   const [busy, setBusy] = useState<'pdf' | 'png' | null>(null)
 
@@ -79,7 +105,10 @@ export function PreviewPanel(props: { project: Project; issues: ValidationIssue[
   return (
     <Card className="sticky top-4 overflow-hidden">
       <div className="border-b border-white/10 p-4">
-        <SectionTitle title="Real-time Preview" subtitle="輸入 → 校驗 → 規格書/JSON/SVG 一鍵匯出" />
+        <SectionTitle
+          title="Real-time Preview"
+          subtitle="輸入 → 校驗 → PROMPT (平面/工藝) / 規格書 / JSON / SVG 一鍵匯出"
+        />
         <div className="mt-3 grid grid-cols-2 gap-2">
           <Button onClick={() => downloadText('design-spec.md', md, 'text/markdown')}>
             <FileText className="h-4 w-4" />
@@ -89,13 +118,25 @@ export function PreviewPanel(props: { project: Project; issues: ValidationIssue[
             <FileJson className="h-4 w-4" />
             匯出 JSON
           </Button>
-          <Button variant="ghost" onClick={() => downloadText('ai-prompt.txt', prompt, 'text/plain')}>
-            <Sparkles className="h-4 w-4" />
-            AI Prompt
+          <Button
+            variant="ghost"
+            onClick={() => downloadText('ai-prompt-flat.txt', flatPrompt, 'text/plain')}
+            className="text-cyan-200"
+          >
+            <Sparkles className="h-4 w-4 text-cyan-300" />
+            🎨 平面 Prompt
           </Button>
-          <Button variant="ghost" onClick={exportPdf} disabled={busy === 'pdf'}>
+          <Button
+            variant="ghost"
+            onClick={() => downloadText('ai-prompt-craft.txt', craftPrompt, 'text/plain')}
+            className="text-amber-200"
+          >
+            <Sparkles className="h-4 w-4 text-amber-300" />
+            ⚡ 工藝 Prompt
+          </Button>
+          <Button variant="ghost" onClick={exportPdf} disabled={busy === 'pdf'} className="col-span-2">
             <Download className="h-4 w-4" />
-            {busy === 'pdf' ? 'PDF 產生中…' : 'PDF 規格 (300DPI/出血/色版)'}
+            {busy === 'pdf' ? 'PDF 產生中…' : 'PDF 規格包 (300DPI/出血/色版)'}
           </Button>
           <Button variant="ghost" onClick={exportPng} disabled={busy === 'png'} className="col-span-2">
             <FileImage className="h-4 w-4" />
@@ -148,19 +189,48 @@ export function PreviewPanel(props: { project: Project; issues: ValidationIssue[
         <Divider />
 
         <details className="group">
-          <summary className="cursor-pointer select-none text-sm font-semibold text-white/80">查看規格 (Markdown / JSON / Prompt)</summary>
+          <summary className="cursor-pointer select-none text-sm font-semibold text-white/80">
+            查看 Prompt 提示詞與規格 (PROMPT 平面 / 工藝 / MD / JSON)
+          </summary>
           <div className="mt-3 space-y-3">
+            {/* 1. 平面設計稿 Prompt */}
+            <div className="rounded-2xl border border-cyan-300/20 bg-black/20 p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-cyan-200">🎨 PROMPT (平面) — 適合 2D 向量草圖、標誌設計</div>
+                <CopyBtn text={flatPrompt} label="複製平面 Prompt" />
+              </div>
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border border-white/5 bg-[#0b1220] p-2 text-xs text-white/70">
+                {flatPrompt}
+              </pre>
+            </div>
+
+            {/* 2. 工藝效果圖 Prompt */}
+            <div className="rounded-2xl border border-amber-300/20 bg-black/20 p-3">
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-amber-200">⚡ PROMPT (工藝) — 適合模擬真實刺繡、浮雕與金屬鑄造</div>
+                <CopyBtn text={craftPrompt} label="複製工藝 Prompt" />
+              </div>
+              <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap rounded-xl border border-white/5 bg-[#0b1220] p-2 text-xs text-white/70">
+                {craftPrompt}
+              </pre>
+            </div>
+
+            {/* 3. Markdown 規格書 */}
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <div className="text-xs font-semibold text-white/70">Markdown</div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-white/70">Markdown 規格書</div>
+                <CopyBtn text={md} label="複製 Markdown" />
+              </div>
               <pre className="mt-2 max-h-56 overflow-auto text-xs text-white/70">{md}</pre>
             </div>
+
+            {/* 4. JSON 數據 */}
             <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <div className="text-xs font-semibold text-white/70">JSON</div>
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-semibold text-white/70">JSON 數據結構</div>
+                <CopyBtn text={json} label="複製 JSON" />
+              </div>
               <pre className="mt-2 max-h-56 overflow-auto text-xs text-white/70">{json}</pre>
-            </div>
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-3">
-              <div className="text-xs font-semibold text-white/70">AI Prompt</div>
-              <pre className="mt-2 max-h-56 overflow-auto text-xs text-white/70 whitespace-pre-wrap">{prompt}</pre>
             </div>
           </div>
         </details>
@@ -168,3 +238,4 @@ export function PreviewPanel(props: { project: Project; issues: ValidationIssue[
     </Card>
   )
 }
+

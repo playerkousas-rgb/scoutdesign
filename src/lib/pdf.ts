@@ -26,6 +26,7 @@ async function svgToPdf(doc: jsPDF, svgString: string, xPt: number, yPt: number,
   if (!svg) throw new Error('Invalid SVG')
 
   // svg2pdf expects a real SVGElement
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   await svg2pdf(svg as unknown as SVGElement, doc as any, {
     x: xPt,
     y: yPt,
@@ -213,6 +214,7 @@ export async function exportFactoryPdf(opts: {
   const maxChars = 6000
   const snippet = md.length > maxChars ? md.slice(0, maxChars) + '\n\n...(truncated)' : md
   const lines = doc.splitTextToSize(snippet, pageW - margin * 2 - 24)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   doc.text(lines as any, margin + 12, 118, { baseline: 'top' } as any)
 
   // Embed metadata hint for DPI (client-side PDF isn't rasterized; this is a target print spec)

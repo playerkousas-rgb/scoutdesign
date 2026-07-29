@@ -82,13 +82,15 @@ export function Button(
   )
 }
 
-export function Pill({ children, tone }: React.PropsWithChildren<{ tone: 'red' | 'yellow' | 'blue' }>) {
+export function Pill({ children, tone }: React.PropsWithChildren<{ tone: 'red' | 'yellow' | 'blue' | 'emerald' }>) {
   const toneClass =
     tone === 'red'
       ? 'border-rose-400/30 bg-rose-500/10 text-rose-200'
       : tone === 'yellow'
         ? 'border-amber-300/30 bg-amber-400/10 text-amber-100'
-        : 'border-sky-300/30 bg-sky-400/10 text-sky-100'
+        : tone === 'emerald'
+          ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'
+          : 'border-sky-300/30 bg-sky-400/10 text-sky-100'
 
   return (
     <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium', toneClass)}>
